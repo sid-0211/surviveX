@@ -5,6 +5,8 @@ public record UserProfile(
         String username,
         String displayName,
         String bio,
-        String survivalFocus
+        String survivalFocus,
+        String profilePhotoUrl,
+        String coverImageUrl
 ) {
 }

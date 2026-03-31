@@ -8,6 +8,8 @@ public record CreateUserRequest(
         @NotBlank String displayName,
         @NotBlank String bio,
         @NotBlank String survivalFocus,
+        String profilePhotoUrl,
+        String coverImageUrl,
         @NotBlank
         @Pattern(
                 regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z\\d]).{6,}$",

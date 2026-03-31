@@ -33,6 +33,12 @@ public class UserAccount {
     @Column(nullable = false)
     private String survivalFocus;
 
+    @Column(length = 1000)
+    private String profilePhotoUrl;
+
+    @Column(length = 1000)
+    private String coverImageUrl;
+
     @Column(nullable = false)
     private String password;
 
@@ -45,16 +51,26 @@ public class UserAccount {
     public UserAccount() {
     }
 
-    public UserAccount(String username, String displayName, String bio, String survivalFocus, String password) {
+    public UserAccount(
+            String username,
+            String displayName,
+            String bio,
+            String survivalFocus,
+            String profilePhotoUrl,
+            String coverImageUrl,
+            String password
+    ) {
         this.username = username;
         this.displayName = displayName;
         this.bio = bio;
         this.survivalFocus = survivalFocus;
+        this.profilePhotoUrl = profilePhotoUrl;
+        this.coverImageUrl = coverImageUrl;
         this.password = password;
     }
 
     public UserProfile toProfile() {
-        return new UserProfile(id, username, displayName, bio, survivalFocus);
+        return new UserProfile(id, username, displayName, bio, survivalFocus, profilePhotoUrl, coverImageUrl);
     }
 
     public Long getId() {
@@ -99,5 +115,21 @@ public class UserAccount {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getProfilePhotoUrl() {
+        return profilePhotoUrl;
+    }
+
+    public void setProfilePhotoUrl(String profilePhotoUrl) {
+        this.profilePhotoUrl = profilePhotoUrl;
+    }
+
+    public String getCoverImageUrl() {
+        return coverImageUrl;
+    }
+
+    public void setCoverImageUrl(String coverImageUrl) {
+        this.coverImageUrl = coverImageUrl;
     }
 }

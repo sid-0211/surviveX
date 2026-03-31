@@ -4,6 +4,7 @@ import com.survivex.backend.dto.ApprovePostRequest;
 import com.survivex.backend.dto.CreateCommentRequest;
 import com.survivex.backend.dto.CreatePostRequest;
 import com.survivex.backend.dto.DeleteContentRequest;
+import com.survivex.backend.dto.RejectPostRequest;
 import com.survivex.backend.dto.ToggleLikeRequest;
 import com.survivex.backend.model.Post;
 import com.survivex.backend.service.SurviveXService;
@@ -67,6 +68,11 @@ public class PostController {
     @PostMapping("/posts/{postId}/approve")
     public Post approvePost(@PathVariable Long postId, @Valid @RequestBody ApprovePostRequest request) {
         return surviveXService.approvePost(postId, request.adminId());
+    }
+
+    @PostMapping("/posts/{postId}/reject")
+    public Post rejectPost(@PathVariable Long postId, @Valid @RequestBody RejectPostRequest request) {
+        return surviveXService.rejectPost(postId, request.adminId());
     }
 
     @DeleteMapping("/posts/{postId}")

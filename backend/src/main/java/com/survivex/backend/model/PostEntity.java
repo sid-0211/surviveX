@@ -44,6 +44,9 @@ public class PostEntity {
     @Column(nullable = false, length = 2000)
     private String survivalLesson;
 
+    @Column(length = 1000)
+    private String imageUrl;
+
     @Column(nullable = false)
     private Instant createdAt;
 
@@ -66,11 +69,20 @@ public class PostEntity {
     public PostEntity() {
     }
 
-    public PostEntity(UserAccount author, String title, String story, String survivalLesson, Instant createdAt, PostStatus status) {
+    public PostEntity(
+            UserAccount author,
+            String title,
+            String story,
+            String survivalLesson,
+            String imageUrl,
+            Instant createdAt,
+            PostStatus status
+    ) {
         this.author = author;
         this.title = title;
         this.story = story;
         this.survivalLesson = survivalLesson;
+        this.imageUrl = imageUrl;
         this.createdAt = createdAt;
         this.status = status;
     }
@@ -93,6 +105,10 @@ public class PostEntity {
 
     public String getSurvivalLesson() {
         return survivalLesson;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
     }
 
     public Instant getCreatedAt() {

@@ -7,6 +7,7 @@ public record CreatePostRequest(
         @NotNull Long authorId,
         @NotBlank String title,
         @NotBlank String story,
-        @NotBlank String survivalLesson
+        @NotBlank String survivalLesson,
+        String imageUrl
 ) {
 }

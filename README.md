@@ -28,6 +28,7 @@ The API runs at `http://localhost:8080` with:
 - `GET /api/users`
 - `POST /api/auth/signup`
 - `POST /api/auth/login`
+- `POST /api/uploads/image`
 - `GET /api/feed`
 - `GET /api/overview`
 - `POST /api/posts`
@@ -52,8 +53,8 @@ The backend is configured for:
 
 - host: `localhost`
 - database: `survivex`
-- username: `moqui`
-- password: `moqui`
+- username: `survivex`
+- password: `survivex`
 
 Spring Boot will try to create the database automatically with:
 
@@ -68,4 +69,21 @@ spring.datasource.url=jdbc:mysql://localhost:3306/survivex?createDatabaseIfNotEx
 - The frontend opens with a login/signup screen and stores the current session in browser local storage
 - Demo logins: `maya.river / maya123`, `arjun.storm / arjun123`, `elena.spark / elena123`
 - Authentication is still a simple MVP flow and is a good foundation for adding Spring Security and JWT later
-# surviveX
+
+## Cloudinary configuration
+
+Set these environment variables before starting the backend:
+
+```bash
+export CLOUDINARY_CLOUD_NAME=dsahysy1w
+export CLOUDINARY_API_KEY=your_api_key
+export CLOUDINARY_API_SECRET=your_api_secret
+```
+
+The app supports:
+
+- profile photo upload
+- cover image upload
+- post image upload
+
+Images are uploaded through the backend and only the returned Cloudinary URLs are stored in MySQL.

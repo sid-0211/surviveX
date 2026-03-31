@@ -23,4 +23,7 @@ public interface PostRepository extends JpaRepository<PostEntity, Long> {
 
     @EntityGraph(attributePaths = {"author", "likedUsers", "comments", "comments.author"})
     List<PostEntity> findByAuthorId(Long authorId);
+
+    @EntityGraph(attributePaths = {"author", "likedUsers", "comments", "comments.author"})
+    List<PostEntity> findByAuthorIdAndStatus(Long authorId, PostStatus status);
 }
