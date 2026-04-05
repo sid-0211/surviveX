@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 const API_BASE = "http://localhost:8080/api";
+const UNITY_WEBGL_URL = "http://localhost:8080/unity";
 const SESSION_KEY = "survivex-active-user";
 const SAVED_POSTS_KEY = "survivex-saved-posts";
 const THEME_KEY = "survivex-theme";
@@ -878,6 +879,10 @@ function App() {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
   }
 
+  function openUnityExperience() {
+    window.location.href = UNITY_WEBGL_URL;
+  }
+
   const pendingPosts = myPosts.filter((post) => post.status === "PENDING");
   const reviewedPosts = myPosts.filter((post) => post.status !== "PENDING");
   const introOverlay = showIntro ? (
@@ -1034,7 +1039,7 @@ function App() {
                   About Us
                 </button>
               </div>
-              <button className="top-nav__cta" onClick={() => goToPage("home")} type="button">
+              <button className="top-nav__cta" onClick={openUnityExperience} type="button">
                 DO or DIE
               </button>
               <div className="top-nav__right">
@@ -1072,7 +1077,7 @@ function App() {
                 About Us
               </button>
             </div>
-            <button className="top-nav__cta" onClick={() => goToPage("home")} type="button">
+            <button className="top-nav__cta" onClick={openUnityExperience} type="button">
               DO or DIE
             </button>
             <div className="top-nav__right">
@@ -1278,7 +1283,7 @@ function App() {
               About Us
             </button>
           </div>
-          <button className="top-nav__cta" onClick={() => goToPage("home")} type="button">
+          <button className="top-nav__cta" onClick={openUnityExperience} type="button">
             DO or DIE
           </button>
           <div className="top-nav__right">
