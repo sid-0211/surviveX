@@ -52,6 +52,7 @@ function App() {
   const [users, setUsers] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
   const [adminPendingPosts, setAdminPendingPosts] = useState([]);
+  const [adminReviewedPosts, setAdminReviewedPosts] = useState([]);
   const [overview, setOverview] = useState({ members: 0, stories: 0, likes: 0, comments: 0 });
   const [savedPostIds, setSavedPostIds] = useState(() => {
     const saved = window.localStorage.getItem(SAVED_POSTS_KEY);
@@ -83,6 +84,12 @@ function App() {
   const [uploadingAboutKey, setUploadingAboutKey] = useState("");
   const [isEditingProfileDetails, setIsEditingProfileDetails] = useState(false);
   const [profileDetailsForm, setProfileDetailsForm] = useState({ bio: "", survivalFocus: "" });
+  const [openSidebarSections, setOpenSidebarSections] = useState({
+    pending: false,
+    admin: false,
+    status: false
+  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState(() => window.localStorage.getItem(THEME_KEY) || "dark");
   const [showIntro, setShowIntro] = useState(() => window.sessionStorage.getItem(INTRO_KEY) !== "true");
   const [activeSpeechField, setActiveSpeechField] = useState("");
@@ -240,10 +247,19 @@ function App() {
 
       if (currentUser && isAdmin) {
         requests.push(fetch(`${API_BASE}/admin/${currentUser.id}/pending-posts`));
+        requests.push(fetch(`${API_BASE}/admin/${currentUser.id}/reviewed-posts`));
       }
 
       const responses = await Promise.all(requests);
-      const [feedResponse, overviewResponse, usersResponse, aboutResponse, myPostsResponse, adminPendingResponse] = responses;
+      const [
+        feedResponse,
+        overviewResponse,
+        usersResponse,
+        aboutResponse,
+        myPostsResponse,
+        adminPendingResponse,
+        adminReviewedResponse
+      ] = responses;
 
       ensureOk(feedResponse, "Failed to load the global feed.");
       ensureOk(overviewResponse, "Failed to load community overview.");
@@ -255,14 +271,26 @@ function App() {
       if (adminPendingResponse) {
         ensureOk(adminPendingResponse, "Failed to load the admin approval queue.");
       }
+      if (adminReviewedResponse) {
+        ensureOk(adminReviewedResponse, "Failed to load the admin status board.");
+      }
 
-      const [feedPayload, overviewPayload, usersPayload, aboutPayload, myPostsPayload, adminPendingPayload] = await Promise.all([
+      const [
+        feedPayload,
+        overviewPayload,
+        usersPayload,
+        aboutPayload,
+        myPostsPayload,
+        adminPendingPayload,
+        adminReviewedPayload
+      ] = await Promise.all([
         feedResponse.json(),
         overviewResponse.json(),
         usersResponse.json(),
         aboutResponse.json(),
         myPostsResponse ? myPostsResponse.json() : Promise.resolve([]),
-        adminPendingResponse ? adminPendingResponse.json() : Promise.resolve([])
+        adminPendingResponse ? adminPendingResponse.json() : Promise.resolve([]),
+        adminReviewedResponse ? adminReviewedResponse.json() : Promise.resolve([])
       ]);
 
       setFeed(feedPayload);
@@ -272,6 +300,7 @@ function App() {
       setAboutForm(aboutPayload);
       setMyPosts(myPostsPayload);
       setAdminPendingPosts(adminPendingPayload);
+      setAdminReviewedPosts(adminReviewedPayload);
     } catch (loadError) {
       setError("Unable to reach the surviveX backend. Start Spring Boot on port 8080.");
     } finally {
@@ -879,12 +908,28 @@ function App() {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
   }
 
+  function toggleSidebarSection(sectionKey) {
+    setOpenSidebarSections((current) => ({
+      ...current,
+      [sectionKey]: !current[sectionKey]
+    }));
+  }
+
+  function toggleSidebar() {
+    setIsSidebarOpen((current) => !current);
+  }
+
+  function closeSidebar() {
+    setIsSidebarOpen(false);
+  }
+
   function openUnityExperience() {
     window.location.href = UNITY_WEBGL_URL;
   }
 
   const pendingPosts = myPosts.filter((post) => post.status === "PENDING");
   const reviewedPosts = myPosts.filter((post) => post.status !== "PENDING");
+  const statusBoardPosts = isAdmin ? adminReviewedPosts : reviewedPosts;
   const introOverlay = showIntro ? (
     <div className="intro-splash" aria-hidden="true">
       <div className="intro-splash__glow" />
@@ -1269,6 +1314,14 @@ function App() {
         <nav className="top-nav">
           <div className="top-nav__links">
             <button
+              aria-label={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              className={`icon-button nav-menu-button ${isSidebarOpen ? "nav-menu-button--active" : ""}`}
+              onClick={toggleSidebar}
+              type="button"
+            >
+              <MenuIcon />
+            </button>
+            <button
               className={`top-nav__link-button ${pageView === "home" ? "top-nav__link-button--active" : ""}`}
               onClick={() => goToPage("home")}
               type="button"
@@ -1330,7 +1383,11 @@ function App() {
           aboutPageContent
         ) : (
         <main className="layout">
-          <aside className="sidebar">
+          <div
+            className={`sidebar-backdrop ${isSidebarOpen ? "sidebar-backdrop--open" : ""}`}
+            onClick={closeSidebar}
+          />
+          <aside className={`sidebar ${isSidebarOpen ? "sidebar--open" : ""}`}>
             <section className="panel profile-panel" id="profile">
               <div
                 className={`profile-panel__cover ${isUploadingCover ? "profile-panel__cover--uploading" : ""}`}
@@ -1453,12 +1510,34 @@ function App() {
               </button>
             </section>
 
-            <section className="panel">
-              <div className="panel__header">
-                <h2>Pending with admin</h2>
-                <p>Posts waiting for approval stay here instead of going straight into the feed.</p>
-              </div>
-              <div className="submission-list">
+            <section className="panel accordion-panel">
+              <button
+                aria-expanded={openSidebarSections.pending}
+                className="accordion-panel__trigger"
+                onClick={() => toggleSidebarSection("pending")}
+                type="button"
+              >
+                <div className="panel__header">
+                  <h2>Pending with admin</h2>
+                  <p>Posts waiting for approval stay here instead of going straight into the feed.</p>
+                </div>
+                <span className="accordion-panel__meta">
+                  <span className="accordion-panel__count">{pendingPosts.length}</span>
+                  <span
+                    className={`accordion-panel__chevron ${
+                      openSidebarSections.pending ? "accordion-panel__chevron--open" : ""
+                    }`}
+                  >
+                    ▾
+                  </span>
+                </span>
+              </button>
+              <div
+                className={`accordion-panel__content ${
+                  openSidebarSections.pending ? "accordion-panel__content--open" : ""
+                }`}
+              >
+                <div className="submission-list">
                 {pendingPosts.length === 0 ? <p className="muted">No pending posts right now.</p> : null}
                 {pendingPosts.map((post) => (
                   <div key={post.id} className="submission-card">
@@ -1475,16 +1554,39 @@ function App() {
                     <p>{post.story}</p>
                   </div>
                 ))}
+                </div>
               </div>
             </section>
 
             {isAdmin ? (
-              <section className="panel">
-                <div className="panel__header">
-                  <h2>Admin moderation</h2>
-                  <p>Approve or reject pending stories before they appear publicly.</p>
-                </div>
-                <div className="submission-list">
+              <section className="panel accordion-panel">
+                <button
+                  aria-expanded={openSidebarSections.admin}
+                  className="accordion-panel__trigger"
+                  onClick={() => toggleSidebarSection("admin")}
+                  type="button"
+                >
+                  <div className="panel__header">
+                    <h2>Admin moderation</h2>
+                    <p>Approve or reject pending stories before they appear publicly.</p>
+                  </div>
+                  <span className="accordion-panel__meta">
+                    <span className="accordion-panel__count">{adminPendingPosts.length}</span>
+                    <span
+                      className={`accordion-panel__chevron ${
+                        openSidebarSections.admin ? "accordion-panel__chevron--open" : ""
+                      }`}
+                    >
+                      ▾
+                    </span>
+                  </span>
+                </button>
+                <div
+                  className={`accordion-panel__content ${
+                    openSidebarSections.admin ? "accordion-panel__content--open" : ""
+                  }`}
+                >
+                  <div className="submission-list">
                   {adminPendingPosts.length === 0 ? (
                     <p className="muted">No pending posts waiting for action.</p>
                   ) : null}
@@ -1517,27 +1619,69 @@ function App() {
                       <p>{post.story}</p>
                     </div>
                   ))}
+                  </div>
                 </div>
               </section>
             ) : null}
 
-            <section className="panel">
-              <div className="panel__header">
-                <h2>Status board</h2>
-                <p>Approved or rejected stories stay attached to your profile history.</p>
-              </div>
-              <div className="submission-list">
-                {reviewedPosts.length === 0 ? <p className="muted">No reviewed posts yet.</p> : null}
-                {reviewedPosts.map((post) => (
+            <section className="panel accordion-panel">
+              <button
+                aria-expanded={openSidebarSections.status}
+                className="accordion-panel__trigger"
+                onClick={() => toggleSidebarSection("status")}
+                type="button"
+              >
+                <div className="panel__header">
+                  <h2>Status board</h2>
+                  <p>Approved or rejected stories stay attached to your profile history.</p>
+                </div>
+                <span className="accordion-panel__meta">
+                  <span className="accordion-panel__count">{statusBoardPosts.length}</span>
+                  <span
+                    className={`accordion-panel__chevron ${
+                      openSidebarSections.status ? "accordion-panel__chevron--open" : ""
+                    }`}
+                  >
+                    ▾
+                  </span>
+                </span>
+              </button>
+              <div
+                className={`accordion-panel__content ${
+                  openSidebarSections.status ? "accordion-panel__content--open" : ""
+                }`}
+              >
+                <div className="submission-list">
+                {statusBoardPosts.length === 0 ? <p className="muted">No reviewed posts yet.</p> : null}
+                {statusBoardPosts.map((post) => (
                   <div key={post.id} className="submission-card">
-                    <div className="submission-card__header">
-                      <strong>{post.title}</strong>
-                      <span className={`status-pill status-pill--${post.status.toLowerCase()}`}>
-                        {post.status}
-                      </span>
+                    <div className="submission-card__header submission-card__header--stack">
+                      <div>
+                        <strong>{post.title}</strong>
+                        {isAdmin ? (
+                          <p className="helper-text">
+                            {post.authorName} {post.authorHandle}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="submission-card__actions">
+                        <span className={`status-pill status-pill--${post.status.toLowerCase()}`}>
+                          {post.status}
+                        </span>
+                        {isAdmin && post.status === "REJECTED" ? (
+                          <button
+                            className="button button--approve button--compact"
+                            onClick={() => handleApprovePost(post.id)}
+                            type="button"
+                          >
+                            Approve
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 ))}
+                </div>
               </div>
             </section>
           </aside>
@@ -1962,6 +2106,17 @@ function MicIcon() {
     <svg aria-hidden="true" className="icon-button__icon" viewBox="0 0 24 24">
       <path
         d="M12 14.5a3.25 3.25 0 0 0 3.25-3.25V6.75a3.25 3.25 0 1 0-6.5 0v4.5A3.25 3.25 0 0 0 12 14.5Zm-5-3.25a.75.75 0 0 1 1.5 0 3.5 3.5 0 1 0 7 0 .75.75 0 0 1 1.5 0 5 5 0 0 1-4.25 4.94V19h2.25a.75.75 0 0 1 0 1.5H9a.75.75 0 0 1 0-1.5h2.25v-2.81A5 5 0 0 1 7 11.25Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg aria-hidden="true" className="icon-button__icon" viewBox="0 0 24 24">
+      <path
+        d="M4.5 7.25h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1 0-1.5Zm0 4h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1 0-1.5Zm0 4h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1 0-1.5Z"
         fill="currentColor"
       />
     </svg>

@@ -45,6 +45,11 @@ public class PostController {
         return surviveXService.getPendingPostsForAdmin(adminId);
     }
 
+    @GetMapping("/admin/{adminId}/reviewed-posts")
+    public List<Post> getReviewedPosts(@PathVariable Long adminId) {
+        return surviveXService.getReviewedPostsForAdmin(adminId);
+    }
+
     @GetMapping("/overview")
     public Map<String, Object> getOverview() {
         return surviveXService.getCommunityOverview();

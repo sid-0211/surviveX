@@ -134,6 +134,17 @@ public class SurviveXService {
     }
 
     @Transactional(readOnly = true)
+    public List<Post> getReviewedPostsForAdmin(Long adminId) {
+        UserAccount admin = getUserOrThrow(adminId);
+        validateAdmin(admin);
+        return postRepository.findAll().stream()
+                .filter(post -> post.getStatus() != PostStatus.PENDING)
+                .sorted(Comparator.comparing(PostEntity::getCreatedAt).reversed())
+                .map(this::toPostResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<Post> getPendingPostsForUser(Long userId) {
         getUserOrThrow(userId);
         return postRepository.findByAuthorIdAndStatus(userId, PostStatus.PENDING).stream()
