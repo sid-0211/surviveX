@@ -1201,9 +1201,7 @@ function App() {
                   <button className="button" type="submit">
                     Enter surviveX
                   </button>
-                  <p className="helper-text">
-                    Demo users: `maya.river / maya123`, `arjun.storm / arjun123`, `admin / admin0211`
-                  </p>
+                  
                 </form>
               ) : (
                 <form className="form" onSubmit={handleSignup}>
