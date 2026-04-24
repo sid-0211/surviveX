@@ -16,6 +16,8 @@ public record Post(
         String imageUrl,
         Instant createdAt,
         String status,
+        String moderationReasonCode,
+        String moderationMessage,
         Set<Long> likedUserIds,
         List<Comment> comments
 ) {

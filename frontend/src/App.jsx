@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
-const API_BASE = "http://localhost:8080/api";
-const UNITY_WEBGL_URL = "http://localhost:8080/unity";
+const APP_HOST = typeof window !== "undefined" ? window.location.hostname || "localhost" : "localhost";
+const IS_LOCAL_HOST = APP_HOST === "localhost" || APP_HOST === "127.0.0.1";
+const DEFAULT_API_BASE = IS_LOCAL_HOST ? `http://${APP_HOST}:8080/api` : "https://api.survivex.in/api";
+const DEFAULT_UNITY_WEBGL_URL = IS_LOCAL_HOST ? `http://${APP_HOST}:8080/unity` : "https://api.survivex.in/unity";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE;
+const UNITY_WEBGL_URL = import.meta.env.VITE_UNITY_WEBGL_URL || DEFAULT_UNITY_WEBGL_URL;
 const SESSION_KEY = "survivex-active-user";
 const SAVED_POSTS_KEY = "survivex-saved-posts";
 const THEME_KEY = "survivex-theme";
@@ -51,8 +55,6 @@ function App() {
   const [feed, setFeed] = useState([]);
   const [users, setUsers] = useState([]);
   const [myPosts, setMyPosts] = useState([]);
-  const [adminPendingPosts, setAdminPendingPosts] = useState([]);
-  const [adminReviewedPosts, setAdminReviewedPosts] = useState([]);
   const [overview, setOverview] = useState({ members: 0, stories: 0, likes: 0, comments: 0 });
   const [savedPostIds, setSavedPostIds] = useState(() => {
     const saved = window.localStorage.getItem(SAVED_POSTS_KEY);
@@ -63,6 +65,7 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [postForm, setPostForm] = useState(emptyPost);
+  const [editingPostId, setEditingPostId] = useState(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [signupForm, setSignupForm] = useState(emptySignup);
   const [loginForm, setLoginForm] = useState(emptyLogin);
@@ -85,8 +88,7 @@ function App() {
   const [isEditingProfileDetails, setIsEditingProfileDetails] = useState(false);
   const [profileDetailsForm, setProfileDetailsForm] = useState({ bio: "", survivalFocus: "" });
   const [openSidebarSections, setOpenSidebarSections] = useState({
-    pending: false,
-    admin: false,
+    published: false,
     status: false
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -94,13 +96,15 @@ function App() {
   const [showIntro, setShowIntro] = useState(() => window.sessionStorage.getItem(INTRO_KEY) !== "true");
   const [activeSpeechField, setActiveSpeechField] = useState("");
   const [activeNarrationPostId, setActiveNarrationPostId] = useState(null);
+  const [loadingNarrationPostId, setLoadingNarrationPostId] = useState(null);
   const isAdmin = currentUser?.username === "admin";
   const profileInputRef = useRef(null);
   const coverInputRef = useRef(null);
   const aboutPageRef = useRef(null);
   const speechRecognitionRef = useRef(null);
   const speechBaseValueRef = useRef("");
-  const speechSynthesisRef = useRef(null);
+  const narrationAudioRef = useRef(null);
+  const narrationAudioUrlRef = useRef("");
 
   useEffect(() => {
     if (currentUser) {
@@ -223,8 +227,13 @@ function App() {
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.stop();
       }
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+      if (narrationAudioRef.current) {
+        narrationAudioRef.current.pause();
+        narrationAudioRef.current = null;
+      }
+      if (narrationAudioUrlRef.current) {
+        URL.revokeObjectURL(narrationAudioUrlRef.current);
+        narrationAudioUrlRef.current = "";
       }
     };
   }, []);
@@ -245,52 +254,23 @@ function App() {
         requests.push(fetch(`${API_BASE}/users/${currentUser.id}/posts`));
       }
 
-      if (currentUser && isAdmin) {
-        requests.push(fetch(`${API_BASE}/admin/${currentUser.id}/pending-posts`));
-        requests.push(fetch(`${API_BASE}/admin/${currentUser.id}/reviewed-posts`));
-      }
-
       const responses = await Promise.all(requests);
-      const [
-        feedResponse,
-        overviewResponse,
-        usersResponse,
-        aboutResponse,
-        myPostsResponse,
-        adminPendingResponse,
-        adminReviewedResponse
-      ] = responses;
+      const [feedResponse, overviewResponse, usersResponse, aboutResponse, myPostsResponse] = responses;
 
-      ensureOk(feedResponse, "Failed to load the global feed.");
-      ensureOk(overviewResponse, "Failed to load community overview.");
-      ensureOk(usersResponse, "Failed to load users.");
-      ensureOk(aboutResponse, "Failed to load About Us.");
+      await ensureOk(feedResponse, "Failed to load the global feed.");
+      await ensureOk(overviewResponse, "Failed to load community overview.");
+      await ensureOk(usersResponse, "Failed to load users.");
+      await ensureOk(aboutResponse, "Failed to load About Us.");
       if (myPostsResponse) {
-        ensureOk(myPostsResponse, "Failed to load your posts.");
-      }
-      if (adminPendingResponse) {
-        ensureOk(adminPendingResponse, "Failed to load the admin approval queue.");
-      }
-      if (adminReviewedResponse) {
-        ensureOk(adminReviewedResponse, "Failed to load the admin status board.");
+        await ensureOk(myPostsResponse, "Failed to load your posts.");
       }
 
-      const [
-        feedPayload,
-        overviewPayload,
-        usersPayload,
-        aboutPayload,
-        myPostsPayload,
-        adminPendingPayload,
-        adminReviewedPayload
-      ] = await Promise.all([
+      const [feedPayload, overviewPayload, usersPayload, aboutPayload, myPostsPayload] = await Promise.all([
         feedResponse.json(),
         overviewResponse.json(),
         usersResponse.json(),
         aboutResponse.json(),
-        myPostsResponse ? myPostsResponse.json() : Promise.resolve([]),
-        adminPendingResponse ? adminPendingResponse.json() : Promise.resolve([]),
-        adminReviewedResponse ? adminReviewedResponse.json() : Promise.resolve([])
+        myPostsResponse ? myPostsResponse.json() : Promise.resolve([])
       ]);
 
       setFeed(feedPayload);
@@ -299,8 +279,6 @@ function App() {
       setAboutPage(aboutPayload);
       setAboutForm(aboutPayload);
       setMyPosts(myPostsPayload);
-      setAdminPendingPosts(adminPendingPayload);
-      setAdminReviewedPosts(adminReviewedPayload);
     } catch (loadError) {
       setError("Unable to reach the surviveX backend. Start Spring Boot on port 8080.");
     } finally {
@@ -325,7 +303,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(signupForm)
       });
-      ensureOk(response, "Unable to create the account.");
+      await ensureOk(response, "Unable to create the account.");
 
       const payload = await response.json();
       setCurrentUser(payload.user);
@@ -347,7 +325,7 @@ function App() {
       method: "POST",
       body: formData
     });
-    ensureOk(response, "Image upload failed.");
+    await ensureOk(response, "Image upload failed.");
     const payload = await response.json();
     return payload.imageUrl;
   }
@@ -422,7 +400,7 @@ function App() {
         coverImageUrl: updates.coverImageUrl ?? currentUser.coverImageUrl
       })
     });
-    ensureOk(response, "Unable to save profile images.");
+    await ensureOk(response, "Unable to save profile images.");
     const updatedUser = await response.json();
     setCurrentUser(updatedUser);
     setAuthMessage("Profile images updated.");
@@ -517,7 +495,7 @@ function App() {
           ...aboutForm
         })
       });
-      ensureOk(response, "Unable to save About Us page.");
+      await ensureOk(response, "Unable to save About Us page.");
       const payload = await response.json();
       setAboutPage(payload);
       setAboutForm(payload);
@@ -539,7 +517,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileDetailsForm)
       });
-      ensureOk(response, "Unable to update profile details.");
+      await ensureOk(response, "Unable to update profile details.");
       const updatedUser = await response.json();
       setCurrentUser(updatedUser);
       setUsers((current) => current.map((user) => (user.id === updatedUser.id ? updatedUser : user)));
@@ -560,7 +538,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginForm)
       });
-      ensureOk(response, "Login failed.");
+      await ensureOk(response, "Login failed.");
 
       const payload = await response.json();
       setCurrentUser(payload.user);
@@ -580,27 +558,51 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/posts`, {
-        method: "POST",
+      const response = await fetch(`${API_BASE}/posts${editingPostId ? `/${editingPostId}` : ""}`, {
+        method: editingPostId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          authorId: currentUser.id,
+          ...(editingPostId ? { requesterId: currentUser.id } : { authorId: currentUser.id }),
           ...postForm
         })
       });
-      ensureOk(response, "Unable to publish the story.");
+      await ensureOk(response, "Unable to publish the story.");
+      const payload = await response.json();
 
       setAuthMessage(
-        isAdmin
-          ? "Admin post published directly to the public feed."
-          : "Post sent for review. You can track it from the sidebar."
+        payload.status === "APPROVED"
+          ? payload.moderationMessage || "Your story passed automatic moderation and is now live."
+          : payload.moderationMessage || "Your story did not pass automatic moderation."
       );
       setPostForm(emptyPost);
+      setEditingPostId(null);
       setIsComposerOpen(false);
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
     }
+  }
+
+  function handleEditRejectedPost(post) {
+    setPostForm({
+      title: post.title || "",
+      story: post.story || "",
+      survivalLesson: post.survivalLesson || "",
+      imageUrl: post.imageUrl || ""
+    });
+    setEditingPostId(post.id);
+    setIsComposerOpen(true);
+    setAuthMessage(`Editing "${post.title}". Update it and send it through moderation again.`);
+    window.location.hash = "#home";
+    window.setTimeout(() => {
+      document.getElementById("composer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  function handleCancelPostEdit() {
+    setEditingPostId(null);
+    setPostForm(emptyPost);
+    setIsComposerOpen(false);
   }
 
   function handleSpeechInput(field) {
@@ -679,49 +681,6 @@ function App() {
     recognition.start();
   }
 
-  async function handleApprovePost(postId) {
-    if (!currentUser || !isAdmin) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/posts/${postId}/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminId: currentUser.id })
-      });
-      ensureOk(response, "Unable to approve the post.");
-      setAuthMessage("Post approved and published.");
-      await loadData();
-    } catch (requestError) {
-      setError(requestError.message);
-    }
-  }
-
-  async function handleRejectPost(postId) {
-    if (!currentUser || !isAdmin) {
-      return;
-    }
-
-    const confirmed = window.confirm("Are you sure you want to reject this post?");
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/posts/${postId}/reject`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminId: currentUser.id })
-      });
-      ensureOk(response, "Unable to reject the post.");
-      setAuthMessage("Post rejected.");
-      await loadData();
-    } catch (requestError) {
-      setError(requestError.message);
-    }
-  }
-
   async function handleToggleLike(postId) {
     if (!currentUser) {
       return;
@@ -733,7 +692,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: currentUser.id })
       });
-      ensureOk(response, "Unable to update the like.");
+      await ensureOk(response, "Unable to update the like.");
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
@@ -760,7 +719,7 @@ function App() {
           message
         })
       });
-      ensureOk(response, "Unable to add the comment.");
+      await ensureOk(response, "Unable to add the comment.");
       setCommentDrafts((current) => ({ ...current, [postId]: "" }));
       await loadData();
     } catch (requestError) {
@@ -784,7 +743,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requesterId: currentUser.id })
       });
-      ensureOk(response, "Unable to delete the post.");
+      await ensureOk(response, "Unable to delete the post.");
       setAuthMessage(label === "cancel this pending post" ? "Pending post cancelled." : "Post deleted.");
       await loadData();
     } catch (requestError) {
@@ -808,47 +767,79 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requesterId: currentUser.id })
       });
-      ensureOk(response, "Unable to delete the comment.");
+      await ensureOk(response, "Unable to delete the comment.");
       await loadData();
     } catch (requestError) {
       setError(requestError.message);
     }
   }
 
-  function handleNarratePost(post) {
-    if (!window.speechSynthesis) {
-      setError("Story narration is not supported in this browser.");
-      return;
-    }
-
+  async function handleNarratePost(post) {
     if (activeNarrationPostId === post.id) {
-      window.speechSynthesis.cancel();
-      speechSynthesisRef.current = null;
+      if (narrationAudioRef.current) {
+        narrationAudioRef.current.pause();
+        narrationAudioRef.current = null;
+      }
+      if (narrationAudioUrlRef.current) {
+        URL.revokeObjectURL(narrationAudioUrlRef.current);
+        narrationAudioUrlRef.current = "";
+      }
       setActiveNarrationPostId(null);
+      setLoadingNarrationPostId(null);
       return;
     }
 
-    window.speechSynthesis.cancel();
+    if (narrationAudioRef.current) {
+      narrationAudioRef.current.pause();
+      narrationAudioRef.current = null;
+    }
+    if (narrationAudioUrlRef.current) {
+      URL.revokeObjectURL(narrationAudioUrlRef.current);
+      narrationAudioUrlRef.current = "";
+    }
 
-    const utterance = new SpeechSynthesisUtterance(
-      `${post.title}. ${post.story}. Instinct that mattered. ${post.survivalLesson}.`
-    );
-    utterance.lang = "en-US";
-    utterance.rate = 0.96;
-    utterance.pitch = 1;
-    utterance.onend = () => {
-      speechSynthesisRef.current = null;
-      setActiveNarrationPostId(null);
-    };
-    utterance.onerror = () => {
-      speechSynthesisRef.current = null;
-      setActiveNarrationPostId(null);
-      setError("Unable to narrate this story right now.");
-    };
+    setError("");
+    setLoadingNarrationPostId(post.id);
 
-    speechSynthesisRef.current = utterance;
-    setActiveNarrationPostId(post.id);
-    window.speechSynthesis.speak(utterance);
+    try {
+      const response = await fetch(`${API_BASE}/narration/posts/${post.id}`);
+      await ensureOk(response, "Unable to generate AI narration right now.");
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      narrationAudioRef.current = audio;
+      narrationAudioUrlRef.current = audioUrl;
+      setActiveNarrationPostId(post.id);
+      setLoadingNarrationPostId(null);
+
+      audio.onended = () => {
+        setActiveNarrationPostId(null);
+        narrationAudioRef.current = null;
+        if (narrationAudioUrlRef.current) {
+          URL.revokeObjectURL(narrationAudioUrlRef.current);
+          narrationAudioUrlRef.current = "";
+        }
+      };
+
+      audio.onerror = () => {
+        setActiveNarrationPostId(null);
+        setLoadingNarrationPostId(null);
+        narrationAudioRef.current = null;
+        if (narrationAudioUrlRef.current) {
+          URL.revokeObjectURL(narrationAudioUrlRef.current);
+          narrationAudioUrlRef.current = "";
+        }
+        setError("Unable to play AI narration right now.");
+      };
+
+      await audio.play();
+    } catch (requestError) {
+      setActiveNarrationPostId(null);
+      setLoadingNarrationPostId(null);
+      setError(requestError.message);
+    }
   }
 
   function handleToggleSave(postId) {
@@ -927,9 +918,8 @@ function App() {
     window.location.href = UNITY_WEBGL_URL;
   }
 
-  const pendingPosts = myPosts.filter((post) => post.status === "PENDING");
-  const reviewedPosts = myPosts.filter((post) => post.status !== "PENDING");
-  const statusBoardPosts = isAdmin ? adminReviewedPosts : reviewedPosts;
+  const publishedPosts = myPosts.filter((post) => post.status === "APPROVED");
+  const statusBoardPosts = myPosts.filter((post) => post.status !== "APPROVED" || post.moderationMessage);
   const introOverlay = showIntro ? (
     <div className="intro-splash" aria-hidden="true">
       <div className="intro-splash__glow" />
@@ -1157,7 +1147,7 @@ function App() {
                 that helped people stay alive when everything narrowed to one moment.
               </p>
               <div className="feature-list">
-                <div className="feature-chip">Moderated true-story publishing</div>
+                <div className="feature-chip">AI moderation checks every story</div>
                 <div className="feature-chip">Public approved feed</div>
                 <div className="feature-chip">Profile identity and survival focus</div>
                 <div className="feature-chip">Stay alert. Stay alive.</div>
@@ -1512,20 +1502,20 @@ function App() {
 
             <section className="panel accordion-panel">
               <button
-                aria-expanded={openSidebarSections.pending}
+                aria-expanded={openSidebarSections.published}
                 className="accordion-panel__trigger"
-                onClick={() => toggleSidebarSection("pending")}
+                onClick={() => toggleSidebarSection("published")}
                 type="button"
               >
                 <div className="panel__header">
-                  <h2>Pending with admin</h2>
-                  <p>Posts waiting for approval stay here instead of going straight into the feed.</p>
+                  <h2>Published stories</h2>
+                  <p>Stories that passed automatic moderation are already live in the public feed.</p>
                 </div>
                 <span className="accordion-panel__meta">
-                  <span className="accordion-panel__count">{pendingPosts.length}</span>
+                  <span className="accordion-panel__count">{publishedPosts.length}</span>
                   <span
                     className={`accordion-panel__chevron ${
-                      openSidebarSections.pending ? "accordion-panel__chevron--open" : ""
+                      openSidebarSections.published ? "accordion-panel__chevron--open" : ""
                     }`}
                   >
                     ▾
@@ -1534,95 +1524,23 @@ function App() {
               </button>
               <div
                 className={`accordion-panel__content ${
-                  openSidebarSections.pending ? "accordion-panel__content--open" : ""
+                  openSidebarSections.published ? "accordion-panel__content--open" : ""
                 }`}
               >
                 <div className="submission-list">
-                {pendingPosts.length === 0 ? <p className="muted">No pending posts right now.</p> : null}
-                {pendingPosts.map((post) => (
+                {publishedPosts.length === 0 ? <p className="muted">No published stories yet.</p> : null}
+                {publishedPosts.map((post) => (
                   <div key={post.id} className="submission-card">
                     <div className="submission-card__header">
                       <strong>{post.title}</strong>
-                      <button
-                        className="button button--secondary button--compact"
-                        onClick={() => handleDeletePost(post.id, "cancel this pending post")}
-                        type="button"
-                      >
-                        Cancel
-                      </button>
+                      <span className="status-pill status-pill--approved">APPROVED</span>
                     </div>
-                    <p>{post.story}</p>
+                    <p>{post.moderationMessage || "Published to the global feed."}</p>
                   </div>
                 ))}
                 </div>
               </div>
             </section>
-
-            {isAdmin ? (
-              <section className="panel accordion-panel">
-                <button
-                  aria-expanded={openSidebarSections.admin}
-                  className="accordion-panel__trigger"
-                  onClick={() => toggleSidebarSection("admin")}
-                  type="button"
-                >
-                  <div className="panel__header">
-                    <h2>Admin moderation</h2>
-                    <p>Approve or reject pending stories before they appear publicly.</p>
-                  </div>
-                  <span className="accordion-panel__meta">
-                    <span className="accordion-panel__count">{adminPendingPosts.length}</span>
-                    <span
-                      className={`accordion-panel__chevron ${
-                        openSidebarSections.admin ? "accordion-panel__chevron--open" : ""
-                      }`}
-                    >
-                      ▾
-                    </span>
-                  </span>
-                </button>
-                <div
-                  className={`accordion-panel__content ${
-                    openSidebarSections.admin ? "accordion-panel__content--open" : ""
-                  }`}
-                >
-                  <div className="submission-list">
-                  {adminPendingPosts.length === 0 ? (
-                    <p className="muted">No pending posts waiting for action.</p>
-                  ) : null}
-                  {adminPendingPosts.map((post) => (
-                    <div key={post.id} className="submission-card">
-                      <div className="submission-card__header submission-card__header--stack">
-                        <div>
-                          <strong>{post.title}</strong>
-                          <p className="helper-text">
-                            {post.authorName} {post.authorHandle}
-                          </p>
-                        </div>
-                        <div className="submission-card__actions">
-                          <button
-                            className="button button--approve button--compact"
-                            onClick={() => handleApprovePost(post.id)}
-                            type="button"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="button button--secondary button--compact"
-                            onClick={() => handleRejectPost(post.id)}
-                            type="button"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                      <p>{post.story}</p>
-                    </div>
-                  ))}
-                  </div>
-                </div>
-              </section>
-            ) : null}
 
             <section className="panel accordion-panel">
               <button
@@ -1633,7 +1551,7 @@ function App() {
               >
                 <div className="panel__header">
                   <h2>Status board</h2>
-                  <p>Approved or rejected stories stay attached to your profile history.</p>
+                  <p>Rejected stories stay here with the automatic moderation reason.</p>
                 </div>
                 <span className="accordion-panel__meta">
                   <span className="accordion-panel__count">{statusBoardPosts.length}</span>
@@ -1658,23 +1576,26 @@ function App() {
                     <div className="submission-card__header submission-card__header--stack">
                       <div>
                         <strong>{post.title}</strong>
-                        {isAdmin ? (
-                          <p className="helper-text">
-                            {post.authorName} {post.authorHandle}
-                          </p>
-                        ) : null}
+                        <p className="helper-text">
+                          {post.status === "APPROVED"
+                            ? "Published to the feed."
+                            : post.moderationMessage || "Rejected by automatic moderation."}
+                        </p>
                       </div>
                       <div className="submission-card__actions">
                         <span className={`status-pill status-pill--${post.status.toLowerCase()}`}>
                           {post.status}
                         </span>
-                        {isAdmin && post.status === "REJECTED" ? (
+                        {post.moderationReasonCode ? (
+                          <span className="status-pill">{post.moderationReasonCode.replaceAll("_", " ")}</span>
+                        ) : null}
+                        {post.status === "REJECTED" ? (
                           <button
-                            className="button button--approve button--compact"
-                            onClick={() => handleApprovePost(post.id)}
+                            className="button button--secondary button--compact"
+                            onClick={() => handleEditRejectedPost(post)}
                             type="button"
                           >
-                            Approve
+                            Edit
                           </button>
                         ) : null}
                       </div>
@@ -1696,7 +1617,13 @@ function App() {
               <div className="composer-toggle">
                 <button
                   className="button"
-                  onClick={() => setIsComposerOpen((current) => !current)}
+                  onClick={() => {
+                    if (isComposerOpen && editingPostId) {
+                      handleCancelPostEdit();
+                      return;
+                    }
+                    setIsComposerOpen((current) => !current);
+                  }}
                   type="button"
                 >
                   {isComposerOpen ? "Not in Mood to Post ?" : "Post Story"}
@@ -1704,6 +1631,9 @@ function App() {
               </div>
               {isComposerOpen ? (
                 <form className="form" onSubmit={handleCreatePost}>
+                  {editingPostId ? (
+                    <p className="helper-text">You are editing a rejected story. Save it to send it through moderation again.</p>
+                  ) : null}
                   <div className="voice-field">
                     <input
                       className="input"
@@ -1778,9 +1708,16 @@ function App() {
                     Tap the mic to dictate in English into the title, story, or instinct fields.
                   </p>
                   <p className="helper-text">Post image uploads support files up to 10 MB.</p>
-                  <button className="button" type="submit">
-                    {isAdmin ? "Publish to global feed" : "Send for admin approval"}
-                  </button>
+                  <div className="form-actions">
+                    <button className="button" type="submit">
+                      {editingPostId ? "Update Story" : "Submit for instant AI moderation"}
+                    </button>
+                    {editingPostId ? (
+                      <button className="button button--ghost" onClick={handleCancelPostEdit} type="button">
+                        Cancel Edit
+                      </button>
+                    ) : null}
+                  </div>
                 </form>
               ) : null}
             </section>
@@ -1788,7 +1725,7 @@ function App() {
             <section className="feed">
               <div className="feed__header">
                 <h2>Community feed</h2>
-                <p>Latest approved stories appear first. Pending posts never enter the public feed.</p>
+                <p>Latest approved stories appear first. Every new story is checked automatically before it goes live.</p>
               </div>
 
               {isLoading ? <div className="panel">Loading surviveX...</div> : null}
@@ -1827,7 +1764,11 @@ function App() {
                           onClick={() => handleNarratePost(post)}
                           type="button"
                         >
-                          {activeNarrationPostId === post.id ? "Stop" : "Listen"}
+                          {loadingNarrationPostId === post.id
+                            ? "Loading..."
+                            : activeNarrationPostId === post.id
+                              ? "Stop"
+                              : "Listen"}
                         </button>
                         <button
                           className="button button--secondary button--compact"
@@ -2123,10 +2064,29 @@ function MenuIcon() {
   );
 }
 
-function ensureOk(response, fallbackMessage) {
+async function ensureOk(response, fallbackMessage) {
   if (!response.ok) {
-    throw new Error(fallbackMessage);
+    let message = fallbackMessage;
+
+    try {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const payload = await response.json();
+        message = payload.message || payload.error || fallbackMessage;
+      } else {
+        const text = await response.text();
+        if (text.trim()) {
+          message = text.trim();
+        }
+      }
+    } catch (_error) {
+      message = fallbackMessage;
+    }
+
+    throw new Error(message);
   }
+
+  return response;
 }
 
 function isStrongPassword(password) {

@@ -5,6 +5,7 @@ import com.survivex.backend.dto.CreatePostRequest;
 import com.survivex.backend.dto.CreateUserRequest;
 import com.survivex.backend.dto.LoginRequest;
 import com.survivex.backend.dto.UpdateAboutPageRequest;
+import com.survivex.backend.dto.UpdatePostRequest;
 import com.survivex.backend.dto.UpdateProfileDetailsRequest;
 import com.survivex.backend.dto.UpdateProfileMediaRequest;
 import com.survivex.backend.model.AboutPage;
@@ -46,17 +47,20 @@ public class SurviveXService {
     private final AboutPageRepository aboutPageRepository;
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
+    private final GeminiPostModerationService geminiPostModerationService;
 
     public SurviveXService(
             UserAccountRepository userAccountRepository,
             AboutPageRepository aboutPageRepository,
             PostRepository postRepository,
-            CommentRepository commentRepository
+            CommentRepository commentRepository,
+            GeminiPostModerationService geminiPostModerationService
     ) {
         this.userAccountRepository = userAccountRepository;
         this.aboutPageRepository = aboutPageRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
+        this.geminiPostModerationService = geminiPostModerationService;
     }
 
     @Transactional(readOnly = true)
@@ -84,7 +88,6 @@ public class SurviveXService {
         return userAccountRepository.save(user).toProfile();
     }
 
-    @Transactional(readOnly = true)
     public UserProfile login(LoginRequest request) {
         UserAccount user = userAccountRepository.findByUsernameIgnoreCase(request.username().trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
@@ -123,69 +126,79 @@ public class SurviveXService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<Post> getPendingPostsForAdmin(Long adminId) {
-        UserAccount admin = getUserOrThrow(adminId);
-        validateAdmin(admin);
-        return postRepository.findByStatus(PostStatus.PENDING).stream()
-                .sorted(Comparator.comparing(PostEntity::getCreatedAt).reversed())
-                .map(this::toPostResponse)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<Post> getReviewedPostsForAdmin(Long adminId) {
-        UserAccount admin = getUserOrThrow(adminId);
-        validateAdmin(admin);
-        return postRepository.findAll().stream()
-                .filter(post -> post.getStatus() != PostStatus.PENDING)
-                .sorted(Comparator.comparing(PostEntity::getCreatedAt).reversed())
-                .map(this::toPostResponse)
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<Post> getPendingPostsForUser(Long userId) {
-        getUserOrThrow(userId);
-        return postRepository.findByAuthorIdAndStatus(userId, PostStatus.PENDING).stream()
-                .sorted(Comparator.comparing(PostEntity::getCreatedAt).reversed())
-                .map(this::toPostResponse)
-                .toList();
-    }
-
     public Post createPost(CreatePostRequest request) {
         UserAccount author = getUserOrThrow(request.authorId());
-        PostStatus status = isAdmin(author) ? PostStatus.APPROVED : PostStatus.PENDING;
-        PostEntity post = new PostEntity(
+        String normalizedTitle = request.title().trim();
+        String normalizedStory = request.story().trim();
+        String normalizedLesson = request.survivalLesson().trim();
+        PostModerationDecision decision = geminiPostModerationService.moderate(
+                normalizedTitle,
+                normalizedStory,
+                normalizedLesson
+        );
+
+        PostStatus status = decision.approved() ? PostStatus.APPROVED : PostStatus.REJECTED;
+        return savePost(
+                author,
+                normalizedTitle,
+                normalizedStory,
+                normalizedLesson,
+                normalizeOptional(request.imageUrl()),
+                status,
+                decision.reasonCode(),
+                decision.message()
+        );
+    }
+
+    @Transactional
+    public Post updatePost(Long postId, UpdatePostRequest request) {
+        PostEntity post = getPostOrThrow(postId);
+        if (!post.getAuthor().getId().equals(request.requesterId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can edit this post");
+        }
+
+        String normalizedTitle = request.title().trim();
+        String normalizedStory = request.story().trim();
+        String normalizedLesson = request.survivalLesson().trim();
+        PostModerationDecision decision = geminiPostModerationService.moderate(
+                normalizedTitle,
+                normalizedStory,
+                normalizedLesson
+        );
+
+        post.setTitle(normalizedTitle);
+        post.setStory(normalizedStory);
+        post.setSurvivalLesson(normalizedLesson);
+        post.setImageUrl(normalizeOptional(request.imageUrl()));
+        post.setCreatedAt(Instant.now());
+        post.setStatus(decision.approved() ? PostStatus.APPROVED : PostStatus.REJECTED);
+        post.setModerationReasonCode(decision.reasonCode());
+        post.setModerationMessage(decision.message());
+
+        return toPostResponse(postRepository.save(post));
+    }
+
+    @Transactional
+    public Post createSeedPost(CreatePostRequest request) {
+        UserAccount author = getUserOrThrow(request.authorId());
+        return savePost(
                 author,
                 request.title().trim(),
                 request.story().trim(),
                 request.survivalLesson().trim(),
                 normalizeOptional(request.imageUrl()),
-                Instant.now(),
-                status
+                PostStatus.APPROVED,
+                "approved",
+                "Sample story published."
         );
-        return toPostResponse(postRepository.save(post));
     }
 
-    public Post approvePost(Long postId, Long adminId) {
-        UserAccount admin = getUserOrThrow(adminId);
-        validateAdmin(admin);
-
-        PostEntity post = getPostOrThrow(postId);
-        post.setStatus(PostStatus.APPROVED);
-        return toPostResponse(postRepository.save(post));
+    @Transactional(readOnly = true)
+    public Post getPost(Long postId) {
+        return toPostResponse(getPostOrThrow(postId));
     }
 
-    public Post rejectPost(Long postId, Long adminId) {
-        UserAccount admin = getUserOrThrow(adminId);
-        validateAdmin(admin);
-
-        PostEntity post = getPostOrThrow(postId);
-        post.setStatus(PostStatus.REJECTED);
-        return toPostResponse(postRepository.save(post));
-    }
-
+    @Transactional
     public Post toggleLike(Long postId, Long userId) {
         UserAccount user = getUserOrThrow(userId);
         PostEntity post = getPostOrThrow(postId);
@@ -199,6 +212,7 @@ public class SurviveXService {
         return toPostResponse(postRepository.save(post));
     }
 
+    @Transactional
     public Post addComment(Long postId, CreateCommentRequest request) {
         UserAccount author = getUserOrThrow(request.authorId());
         PostEntity post = getPostOrThrow(postId);
@@ -212,19 +226,16 @@ public class SurviveXService {
         return toPostResponse(postRepository.save(post));
     }
 
+    @Transactional
     public void deletePost(Long postId, Long requesterId) {
         PostEntity post = getPostOrThrow(postId);
-        UserAccount requester = getUserOrThrow(requesterId);
-        if (!post.getAuthor().getId().equals(requesterId) && !isAdmin(requester)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author or admin can delete this post");
-        }
-        if (post.getStatus() == PostStatus.APPROVED) {
-            postRepository.delete(post);
-            return;
+        if (!post.getAuthor().getId().equals(requesterId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can delete this post");
         }
         postRepository.delete(post);
     }
 
+    @Transactional
     public Post deleteComment(Long postId, Long commentId, Long requesterId) {
         PostEntity post = getPostOrThrow(postId);
 
@@ -256,6 +267,7 @@ public class SurviveXService {
         return overview;
     }
 
+    @Transactional
     public UserProfile updateProfileMedia(Long userId, UpdateProfileMediaRequest request) {
         UserAccount user = getUserOrThrow(userId);
         user.setProfilePhotoUrl(normalizeOptional(request.profilePhotoUrl()));
@@ -263,6 +275,7 @@ public class SurviveXService {
         return userAccountRepository.save(user).toProfile();
     }
 
+    @Transactional
     public UserProfile updateProfileDetails(Long userId, UpdateProfileDetailsRequest request) {
         UserAccount user = getUserOrThrow(userId);
         user.setBio(request.bio().trim());
@@ -275,6 +288,7 @@ public class SurviveXService {
         return toAboutPage(getAboutPageEntity());
     }
 
+    @Transactional
     public AboutPage updateAboutPage(UpdateAboutPageRequest request) {
         UserAccount admin = getUserOrThrow(request.adminId());
         validateAdmin(admin);
@@ -318,7 +332,7 @@ public class SurviveXService {
 
     private void validateAdmin(UserAccount user) {
         if (!isAdmin(user)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin can moderate posts");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin can edit the About page");
         }
     }
 
@@ -400,8 +414,34 @@ public class SurviveXService {
                 post.getImageUrl(),
                 post.getCreatedAt(),
                 post.getStatus().name(),
+                post.getModerationReasonCode(),
+                post.getModerationMessage(),
                 likedUserIds,
                 comments
         );
+    }
+
+    private Post savePost(
+            UserAccount author,
+            String title,
+            String story,
+            String survivalLesson,
+            String imageUrl,
+            PostStatus status,
+            String moderationReasonCode,
+            String moderationMessage
+    ) {
+        PostEntity post = new PostEntity(
+                author,
+                title,
+                story,
+                survivalLesson,
+                imageUrl,
+                Instant.now(),
+                status,
+                moderationReasonCode,
+                moderationMessage
+        );
+        return toPostResponse(postRepository.save(post));
     }
 }

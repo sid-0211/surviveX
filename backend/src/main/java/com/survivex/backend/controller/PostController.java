@@ -1,11 +1,10 @@
 package com.survivex.backend.controller;
 
-import com.survivex.backend.dto.ApprovePostRequest;
 import com.survivex.backend.dto.CreateCommentRequest;
 import com.survivex.backend.dto.CreatePostRequest;
 import com.survivex.backend.dto.DeleteContentRequest;
-import com.survivex.backend.dto.RejectPostRequest;
 import com.survivex.backend.dto.ToggleLikeRequest;
+import com.survivex.backend.dto.UpdatePostRequest;
 import com.survivex.backend.model.Post;
 import com.survivex.backend.service.SurviveXService;
 import jakarta.validation.Valid;
@@ -13,6 +12,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,16 +40,6 @@ public class PostController {
         return surviveXService.getUserPosts(userId);
     }
 
-    @GetMapping("/admin/{adminId}/pending-posts")
-    public List<Post> getPendingPosts(@PathVariable Long adminId) {
-        return surviveXService.getPendingPostsForAdmin(adminId);
-    }
-
-    @GetMapping("/admin/{adminId}/reviewed-posts")
-    public List<Post> getReviewedPosts(@PathVariable Long adminId) {
-        return surviveXService.getReviewedPostsForAdmin(adminId);
-    }
-
     @GetMapping("/overview")
     public Map<String, Object> getOverview() {
         return surviveXService.getCommunityOverview();
@@ -60,6 +50,11 @@ public class PostController {
         return surviveXService.createPost(request);
     }
 
+    @PutMapping("/posts/{postId}")
+    public Post updatePost(@PathVariable Long postId, @Valid @RequestBody UpdatePostRequest request) {
+        return surviveXService.updatePost(postId, request);
+    }
+
     @PostMapping("/posts/{postId}/like")
     public Post toggleLike(@PathVariable Long postId, @Valid @RequestBody ToggleLikeRequest request) {
         return surviveXService.toggleLike(postId, request.userId());
@@ -68,16 +63,6 @@ public class PostController {
     @PostMapping("/posts/{postId}/comments")
     public Post addComment(@PathVariable Long postId, @Valid @RequestBody CreateCommentRequest request) {
         return surviveXService.addComment(postId, request);
-    }
-
-    @PostMapping("/posts/{postId}/approve")
-    public Post approvePost(@PathVariable Long postId, @Valid @RequestBody ApprovePostRequest request) {
-        return surviveXService.approvePost(postId, request.adminId());
-    }
-
-    @PostMapping("/posts/{postId}/reject")
-    public Post rejectPost(@PathVariable Long postId, @Valid @RequestBody RejectPostRequest request) {
-        return surviveXService.rejectPost(postId, request.adminId());
     }
 
     @DeleteMapping("/posts/{postId}")

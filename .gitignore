@@ -1,5 +1,10 @@
 backend/target/
 frontend/dist/
 frontend/node_modules/
+.expo/
 .DS_Store
 backend/SurviveX_WEBGL/
+
+backend/survivex-backend-eb.zip
+backend/backend-0.0.1-SNAPSHOT.jar
+backend/target/

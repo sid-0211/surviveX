@@ -98,7 +98,7 @@ public class DataInitializer {
                     "elena123"
             ));
 
-            Post firstPost = surviveXService.createPost(new CreatePostRequest(
+            Post firstPost = surviveXService.createSeedPost(new CreatePostRequest(
                     maya.id(),
                     "The river looked calm until it wasn't",
                     "I slipped while crossing a cold river on a hike. My first instinct was to fight the current, but I remembered to turn on my back, point my feet downstream, and focus on reaching the nearest eddy instead of the shore directly. That one decision stopped the panic spiral and gave me control again.",
@@ -111,7 +111,7 @@ public class DataInitializer {
                     "That reminder about not standing up too early in moving water is huge."
             ));
 
-            Post secondPost = surviveXService.createPost(new CreatePostRequest(
+            Post secondPost = surviveXService.createSeedPost(new CreatePostRequest(
                     arjun.id(),
                     "I smelled smoke before I saw the wiring fire",
                     "At 2 AM I woke up to a faint burning-plastic smell. There was no visible flame yet, but the outlet near the desk was already overheating. Cutting power at the breaker first prevented a much worse fire. It taught me that strange smells are not something to dismiss when seconds matter.",

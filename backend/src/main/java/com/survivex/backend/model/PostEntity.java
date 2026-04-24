@@ -54,6 +54,12 @@ public class PostEntity {
     @Column(nullable = false, columnDefinition = "VARCHAR(32) DEFAULT 'APPROVED'")
     private PostStatus status;
 
+    @Column(length = 64)
+    private String moderationReasonCode;
+
+    @Column(length = 500)
+    private String moderationMessage;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "post_likes",
@@ -76,7 +82,9 @@ public class PostEntity {
             String survivalLesson,
             String imageUrl,
             Instant createdAt,
-            PostStatus status
+            PostStatus status,
+            String moderationReasonCode,
+            String moderationMessage
     ) {
         this.author = author;
         this.title = title;
@@ -85,6 +93,8 @@ public class PostEntity {
         this.imageUrl = imageUrl;
         this.createdAt = createdAt;
         this.status = status;
+        this.moderationReasonCode = moderationReasonCode;
+        this.moderationMessage = moderationMessage;
     }
 
     public Long getId() {
@@ -99,20 +109,40 @@ public class PostEntity {
         return title;
     }
 
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
     public String getStory() {
         return story;
+    }
+
+    public void setStory(String story) {
+        this.story = story;
     }
 
     public String getSurvivalLesson() {
         return survivalLesson;
     }
 
+    public void setSurvivalLesson(String survivalLesson) {
+        this.survivalLesson = survivalLesson;
+    }
+
     public String getImageUrl() {
         return imageUrl;
     }
 
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 
     public PostStatus getStatus() {
@@ -121,6 +151,22 @@ public class PostEntity {
 
     public void setStatus(PostStatus status) {
         this.status = status;
+    }
+
+    public String getModerationReasonCode() {
+        return moderationReasonCode;
+    }
+
+    public void setModerationReasonCode(String moderationReasonCode) {
+        this.moderationReasonCode = moderationReasonCode;
+    }
+
+    public String getModerationMessage() {
+        return moderationMessage;
+    }
+
+    public void setModerationMessage(String moderationMessage) {
+        this.moderationMessage = moderationMessage;
     }
 
     public Set<UserAccount> getLikedUsers() {
