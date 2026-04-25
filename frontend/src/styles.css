@@ -773,6 +773,16 @@ a {
   box-shadow: 0 0 0 3px rgba(255, 33, 71, 0.14);
 }
 
+.input--success {
+  border-color: #1b7f57;
+  box-shadow: 0 0 0 2px rgba(27, 127, 87, 0.16);
+}
+
+.input--error {
+  border-color: #b53a3a;
+  box-shadow: 0 0 0 2px rgba(181, 58, 58, 0.14);
+}
+
 .input::placeholder,
 textarea::placeholder {
   color: var(--text-faint);
@@ -785,6 +795,14 @@ textarea::placeholder {
 
 .input--story {
   min-height: 142px;
+}
+
+.helper-text--success {
+  color: #1b7f57;
+}
+
+.helper-text--error {
+  color: #b53a3a;
 }
 
 .button {

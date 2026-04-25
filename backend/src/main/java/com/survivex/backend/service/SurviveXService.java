@@ -70,6 +70,15 @@ public class SurviveXService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public boolean isUsernameAvailable(String username) {
+        String normalizedUsername = username == null ? "" : username.trim().toLowerCase();
+        if (normalizedUsername.length() < 4) {
+            return false;
+        }
+        return !userAccountRepository.existsByUsernameIgnoreCase(normalizedUsername);
+    }
+
     public UserProfile createUser(CreateUserRequest request) {
         String normalizedUsername = request.username().trim().toLowerCase();
         if (userAccountRepository.existsByUsernameIgnoreCase(normalizedUsername)) {

@@ -68,6 +68,11 @@ function App() {
   const [editingPostId, setEditingPostId] = useState(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [signupForm, setSignupForm] = useState(emptySignup);
+  const [signupFieldErrors, setSignupFieldErrors] = useState({});
+  const [signupUsernameStatus, setSignupUsernameStatus] = useState({
+    state: "idle",
+    message: "Username must be at least 4 characters."
+  });
   const [loginForm, setLoginForm] = useState(emptyLogin);
   const [commentDrafts, setCommentDrafts] = useState({});
   const [authMode, setAuthMode] = useState("login");
@@ -160,6 +165,56 @@ function App() {
       survivalFocus: currentUser.survivalFocus || ""
     });
   }, [currentUser]);
+
+  useEffect(() => {
+    if (authMode !== "signup") {
+      return;
+    }
+
+    const username = signupForm.username.trim();
+    if (!username) {
+      setSignupUsernameStatus({
+        state: "idle",
+        message: "Username must be at least 4 characters."
+      });
+      return;
+    }
+
+    if (username.length < 4) {
+      setSignupUsernameStatus({
+        state: "invalid",
+        message: "Username must be at least 4 characters."
+      });
+      return;
+    }
+
+    setSignupUsernameStatus({
+      state: "checking",
+      message: "Checking username availability..."
+    });
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE}/auth/username-availability?username=${encodeURIComponent(username)}`
+        );
+        await ensureOk(response, "Unable to check username availability.");
+        const payload = await response.json();
+        setSignupUsernameStatus(
+          payload.available
+            ? { state: "available", message: "Username is available." }
+            : { state: "unavailable", message: "Username is already taken." }
+        );
+      } catch (requestError) {
+        setSignupUsernameStatus({
+          state: "idle",
+          message: "Could not verify username right now."
+        });
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [authMode, signupForm.username]);
 
   useEffect(() => {
     if (pageView !== "about" || !aboutPageRef.current) {
@@ -289,8 +344,48 @@ function App() {
   async function handleSignup(event) {
     event.preventDefault();
     setError("");
+    const nextFieldErrors = {};
+
+    if (!signupForm.username.trim()) {
+      nextFieldErrors.username = "Username is required.";
+    }
+    if (!signupForm.displayName.trim()) {
+      nextFieldErrors.displayName = "Display name is required.";
+    }
+    if (!signupForm.bio.trim()) {
+      nextFieldErrors.bio = "Bio is required.";
+    }
+    if (!signupForm.survivalFocus.trim()) {
+      nextFieldErrors.survivalFocus = "Survival focus is required.";
+    }
+    if (!signupForm.password.trim()) {
+      nextFieldErrors.password = "Password is required.";
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setSignupFieldErrors(nextFieldErrors);
+      setError("Mandatory fields are required.");
+      return;
+    }
+
+    if (signupForm.username.trim().length < 4) {
+      setSignupFieldErrors((current) => ({ ...current, username: "Username must be at least 4 characters long." }));
+      setError("Username must be at least 4 characters long.");
+      return;
+    }
+
+    if (signupUsernameStatus.state === "unavailable") {
+      setSignupFieldErrors((current) => ({ ...current, username: "That username is already taken." }));
+      setError("That username is already taken.");
+      return;
+    }
 
     if (!isStrongPassword(signupForm.password)) {
+      setSignupFieldErrors((current) => ({
+        ...current,
+        password:
+          "Password must be at least 6 characters and include 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character."
+      }));
       setError(
         "Password must be at least 6 characters and include 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character."
       );
@@ -303,9 +398,17 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(signupForm)
       });
-      await ensureOk(response, "Unable to create the account.");
+      const contentType = response.headers.get("content-type") || "";
+      const payload = contentType.includes("application/json") ? await response.json() : null;
 
-      const payload = await response.json();
+      if (!response.ok) {
+        if (payload?.fieldErrors) {
+          setSignupFieldErrors(payload.fieldErrors);
+        }
+        throw new Error(payload?.message || "Unable to create the account.");
+      }
+
+      setSignupFieldErrors({});
       setCurrentUser(payload.user);
       window.location.hash = "#home";
       setSignupForm(emptySignup);
@@ -1183,7 +1286,7 @@ function App() {
                   </div>
                   <input
                     className="input"
-                    placeholder="Username"
+                    placeholder="Username *"
                     value={loginForm.username}
                     onChange={(event) =>
                       setLoginForm((current) => ({ ...current, username: event.target.value }))
@@ -1191,7 +1294,7 @@ function App() {
                   />
                   <input
                     className="input"
-                    placeholder="Password"
+                    placeholder="Password *"
                     type="password"
                     value={loginForm.password}
                     onChange={(event) =>
@@ -1210,37 +1313,83 @@ function App() {
                     <p>Build your identity with profile images and your survival focus.</p>
                   </div>
                   <input
-                    className="input"
-                    placeholder="Username"
+                    className={`input ${
+                      signupFieldErrors.username
+                        ? "input--error"
+                        : 
+                      signupUsernameStatus.state === "available"
+                        ? "input--success"
+                        : signupUsernameStatus.state === "unavailable" || signupUsernameStatus.state === "invalid"
+                          ? "input--error"
+                          : ""
+                    }`}
+                    placeholder="Username *"
                     value={signupForm.username}
-                    onChange={(event) =>
-                      setSignupForm((current) => ({ ...current, username: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      setSignupForm((current) => ({ ...current, username: event.target.value }));
+                      setSignupFieldErrors((current) => {
+                        const next = { ...current };
+                        delete next.username;
+                        return next;
+                      });
+                    }}
                   />
+                  <p
+                    className={`helper-text ${
+                      signupFieldErrors.username
+                        ? "helper-text--error"
+                        :
+                      signupUsernameStatus.state === "available"
+                        ? "helper-text--success"
+                        : signupUsernameStatus.state === "unavailable" || signupUsernameStatus.state === "invalid"
+                          ? "helper-text--error"
+                          : ""
+                    }`}
+                  >
+                    {signupFieldErrors.username || signupUsernameStatus.message}
+                  </p>
                   <input
-                    className="input"
-                    placeholder="Display name"
+                    className={`input ${signupFieldErrors.displayName ? "input--error" : ""}`}
+                    placeholder="Display name *"
                     value={signupForm.displayName}
-                    onChange={(event) =>
-                      setSignupForm((current) => ({ ...current, displayName: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      setSignupForm((current) => ({ ...current, displayName: event.target.value }));
+                      setSignupFieldErrors((current) => {
+                        const next = { ...current };
+                        delete next.displayName;
+                        return next;
+                      });
+                    }}
                   />
+                  {signupFieldErrors.displayName ? <p className="helper-text helper-text--error">{signupFieldErrors.displayName}</p> : null}
                   <textarea
-                    className="input input--textarea"
-                    placeholder="Short bio"
+                    className={`input input--textarea ${signupFieldErrors.bio ? "input--error" : ""}`}
+                    placeholder="Short bio *"
                     value={signupForm.bio}
-                    onChange={(event) =>
-                      setSignupForm((current) => ({ ...current, bio: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      setSignupForm((current) => ({ ...current, bio: event.target.value }));
+                      setSignupFieldErrors((current) => {
+                        const next = { ...current };
+                        delete next.bio;
+                        return next;
+                      });
+                    }}
                   />
+                  {signupFieldErrors.bio ? <p className="helper-text helper-text--error">{signupFieldErrors.bio}</p> : null}
                   <input
-                    className="input"
-                    placeholder="Survival focus"
+                    className={`input ${signupFieldErrors.survivalFocus ? "input--error" : ""}`}
+                    placeholder="Survival focus *"
                     value={signupForm.survivalFocus}
-                    onChange={(event) =>
-                      setSignupForm((current) => ({ ...current, survivalFocus: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      setSignupForm((current) => ({ ...current, survivalFocus: event.target.value }));
+                      setSignupFieldErrors((current) => {
+                        const next = { ...current };
+                        delete next.survivalFocus;
+                        return next;
+                      });
+                    }}
                   />
+                  {signupFieldErrors.survivalFocus ? <p className="helper-text helper-text--error">{signupFieldErrors.survivalFocus}</p> : null}
                   <input
                     className="input"
                     placeholder="Profile photo URL"
@@ -1270,15 +1419,23 @@ function App() {
                   ) : null}
                   <p className="helper-text">Image uploads support files up to 10 MB.</p>
                   <input
-                    className="input"
-                    placeholder="Password"
+                    className={`input ${signupFieldErrors.password ? "input--error" : ""}`}
+                    placeholder="Password *"
                     minLength="6"
                     type="password"
                     value={signupForm.password}
-                    onChange={(event) =>
-                      setSignupForm((current) => ({ ...current, password: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      setSignupForm((current) => ({ ...current, password: event.target.value }));
+                      setSignupFieldErrors((current) => {
+                        const next = { ...current };
+                        delete next.password;
+                        return next;
+                      });
+                    }}
                   />
+                  {signupFieldErrors.password ? (
+                    <p className="helper-text helper-text--error">{signupFieldErrors.password}</p>
+                  ) : null}
                   <p className="helper-text">
                     Password must be at least 6 characters and include 1 uppercase letter, 1 lowercase
                     letter, 1 number, and 1 special character.
