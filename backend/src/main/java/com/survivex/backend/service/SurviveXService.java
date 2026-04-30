@@ -80,16 +80,21 @@ public class SurviveXService {
     }
 
     public UserProfile createUser(CreateUserRequest request) {
+        String normalizedEmail = request.email().trim().toLowerCase();
         String normalizedUsername = request.username().trim().toLowerCase();
+        if (userAccountRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+        }
         if (userAccountRepository.existsByUsernameIgnoreCase(normalizedUsername)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
 
         UserAccount user = new UserAccount(
+                normalizedEmail,
                 normalizedUsername,
                 request.displayName().trim(),
-                request.bio().trim(),
-                request.survivalFocus().trim(),
+                normalizeText(request.bio()),
+                normalizeText(request.survivalFocus()),
                 normalizeOptional(request.profilePhotoUrl()),
                 normalizeOptional(request.coverImageUrl()),
                 passwordEncoder.encode(request.password().trim())
@@ -287,8 +292,8 @@ public class SurviveXService {
     @Transactional
     public UserProfile updateProfileDetails(Long userId, UpdateProfileDetailsRequest request) {
         UserAccount user = getUserOrThrow(userId);
-        user.setBio(request.bio().trim());
-        user.setSurvivalFocus(request.survivalFocus().trim());
+        user.setBio(normalizeText(request.bio()));
+        user.setSurvivalFocus(normalizeText(request.survivalFocus()));
         return userAccountRepository.save(user).toProfile();
     }
 
@@ -348,6 +353,13 @@ public class SurviveXService {
     private String normalizeOptional(String value) {
         if (value == null || value.isBlank()) {
             return null;
+        }
+        return value.trim();
+    }
+
+    private String normalizeText(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
         }
         return value.trim();
     }

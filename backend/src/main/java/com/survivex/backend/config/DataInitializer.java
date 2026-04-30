@@ -56,6 +56,7 @@ public class DataInitializer {
 
             if (!userAccountRepository.existsByUsernameIgnoreCase("admin")) {
                 surviveXService.createUser(new CreateUserRequest(
+                        "admin@survivex.in",
                         "admin",
                         "Admin",
                         "Platform moderator for surviveX approvals.",
@@ -71,6 +72,7 @@ public class DataInitializer {
             }
 
             UserProfile maya = surviveXService.createUser(new CreateUserRequest(
+                    "maya@survivex.in",
                     "maya.river",
                     "Maya River",
                     "Documenting close calls and the instincts that mattered most.",
@@ -80,6 +82,7 @@ public class DataInitializer {
                     "maya123"
             ));
             UserProfile arjun = surviveXService.createUser(new CreateUserRequest(
+                    "arjun@survivex.in",
                     "arjun.storm",
                     "Arjun Storm",
                     "Sharing survival lessons from mountains, roads, and real life.",
@@ -89,6 +92,7 @@ public class DataInitializer {
                     "arjun123"
             ));
             UserProfile elena = surviveXService.createUser(new CreateUserRequest(
+                    "elena@survivex.in",
                     "elena.spark",
                     "Elena Spark",
                     "I collect true stories that help people act faster when it counts.",

@@ -7,6 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -32,5 +33,21 @@ public class ApiExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiErrorResponse(message, fieldErrors));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiErrorResponse> handleStatus(ResponseStatusException exception) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        String reason = exception.getReason() == null ? "Request could not be processed." : exception.getReason();
+
+        if (reason.toLowerCase().contains("username")) {
+            fieldErrors.put("username", reason);
+        }
+        if (reason.toLowerCase().contains("email")) {
+            fieldErrors.put("email", reason);
+        }
+
+        return ResponseEntity.status(exception.getStatusCode())
+                .body(new ApiErrorResponse(reason, fieldErrors));
     }
 }

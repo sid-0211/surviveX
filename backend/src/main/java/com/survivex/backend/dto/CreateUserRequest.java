@@ -1,16 +1,20 @@
 package com.survivex.backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public record CreateUserRequest(
+        @NotBlank
+        @Email(message = "Enter a valid email address.")
+        String email,
         @NotBlank
         @Size(min = 4, message = "Username must be at least 4 characters long")
         String username,
         @NotBlank String displayName,
-        @NotBlank String bio,
-        @NotBlank String survivalFocus,
+        String bio,
+        String survivalFocus,
         String profilePhotoUrl,
         String coverImageUrl,
         @NotBlank

@@ -24,6 +24,9 @@ public class UserAccount {
     @Column(nullable = false, unique = true)
     private String username;
 
+    @Column(unique = true, length = 320)
+    private String email;
+
     @Column(nullable = false)
     private String displayName;
 
@@ -52,6 +55,7 @@ public class UserAccount {
     }
 
     public UserAccount(
+            String email,
             String username,
             String displayName,
             String bio,
@@ -60,6 +64,7 @@ public class UserAccount {
             String coverImageUrl,
             String password
     ) {
+        this.email = email;
         this.username = username;
         this.displayName = displayName;
         this.bio = bio;
@@ -70,7 +75,7 @@ public class UserAccount {
     }
 
     public UserProfile toProfile() {
-        return new UserProfile(id, username, displayName, bio, survivalFocus, profilePhotoUrl, coverImageUrl);
+        return new UserProfile(id, email, username, displayName, bio, survivalFocus, profilePhotoUrl, coverImageUrl);
     }
 
     public Long getId() {
@@ -83,6 +88,14 @@ public class UserAccount {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getDisplayName() {
