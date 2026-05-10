@@ -20,7 +20,7 @@ import java.nio.file.Paths;
 @RestController
 public class UnityController {
 
-    private final Path unityRoot = Paths.get(System.getProperty("user.dir"), "SurviveX_WEBGL").normalize();
+    private final Path unityRoot = Paths.get(System.getProperty("user.dir"), "SurviveX_WEBGL4").normalize();
 
     @GetMapping("/unity")
     public RedirectView redirectUnityRoot() {

@@ -17,3 +17,11 @@ backend/survivex-backend-eb.zip
 backend/backend-0.0.1-SNAPSHOT.jar
 backend/target/
 welcome-to-docker
+
+backend/SurviveX_WEBGL2/Build/
+backend/SurviveX_WEBGL4/Build/
+backend/SurviveX_WEBGL8/Build/
+backend/SurviveX_WEBGL9/Build/
+backend/*.zip
+backend/*.jar
+backend/target/

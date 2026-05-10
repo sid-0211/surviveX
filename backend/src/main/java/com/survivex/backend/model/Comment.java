@@ -6,6 +6,7 @@ public record Comment(
         Long id,
         Long authorId,
         String authorName,
+        String authorProfilePhotoUrl,
         String message,
         Instant createdAt
 ) {

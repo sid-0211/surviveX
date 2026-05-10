@@ -243,8 +243,9 @@ public class SurviveXService {
     @Transactional
     public void deletePost(Long postId, Long requesterId) {
         PostEntity post = getPostOrThrow(postId);
-        if (!post.getAuthor().getId().equals(requesterId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can delete this post");
+        UserAccount requester = getUserOrThrow(requesterId);
+        if (!post.getAuthor().getId().equals(requesterId) && !isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author or admin can delete this post");
         }
         postRepository.delete(post);
     }
@@ -418,6 +419,7 @@ public class SurviveXService {
                         comment.getId(),
                         comment.getAuthor().getId(),
                         comment.getAuthor().getDisplayName(),
+                        comment.getAuthor().getProfilePhotoUrl(),
                         comment.getMessage(),
                         comment.getCreatedAt()
                 ))

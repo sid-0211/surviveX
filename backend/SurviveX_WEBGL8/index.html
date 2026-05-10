@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unity WebGL Player | SurviveX</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body class="survivex-webgl">
+    <div class="unity-page-shell">
+      <nav class="unity-nav">
+        <a class="unity-nav__brand" href="https://survivex.in">survive<span>X</span></a>
+        <div class="unity-nav__links">
+          <a href="https://survivex.in">Home</a>
+          <a href="https://survivex.in/#about">About Us</a>
+          <a href="https://survivex.in">Community Feed</a>
+        </div>
+      </nav>
+
+      <header class="unity-page-header">
+        <span class="unity-page-header__eyebrow">surviveX / DO or DIE</span>
+        <h1>Step Into the Survival Trial</h1>
+        <p>Same surviveX atmosphere, sharper stakes. Enter the simulation, stay alert, and let instinct carry you through.</p>
+      </header>
+
+      <div class="unity-mobile-tip">
+        <strong>Best in landscape.</strong>
+        <span>Rotate your phone for a wider survival view and more stable controls.</span>
+      </div>
+
+      <div id="unity-container" class="unity-desktop">
+        <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+        <div id="unity-loading-bar">
+          <div id="unity-logo">surviveX</div>
+          <div id="unity-progress-bar-empty">
+            <div id="unity-progress-bar-full"></div>
+          </div>
+          <p id="unity-loading-text">Preparing the simulation...</p>
+        </div>
+        <div id="unity-warning"> </div>
+        <div id="unity-footer">
+          <div class="unity-footer__brand">
+            <div id="unity-webgl-logo"></div>
+            <div id="unity-build-title">DO or DIE</div>
+          </div>
+          <button id="unity-fullscreen-button" type="button" aria-label="Open fullscreen view"></button>
+        </div>
+      </div>
+    </div>
+    <script>
+
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var loadingText = document.querySelector("#unity-loading-text");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      var warningBanner = document.querySelector("#unity-warning");
+      var mobileTip = document.querySelector(".unity-mobile-tip");
+
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        div.className = 'unity-banner unity-banner--' + (type || 'info');
+        warningBanner.appendChild(div);
+        if (type !== 'error') {
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/SurviveX_WEBGL.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/SurviveX_WEBGL.data.unityweb",
+        frameworkUrl: buildUrl + "/SurviveX_WEBGL.framework.js.unityweb",
+        codeUrl: buildUrl + "/SurviveX_WEBGL.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Adish",
+        productName: "SurviveX",
+        productVersion: "0.1.0",
+        showBanner: unityShowBanner,
+      };
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        container.className = "unity-mobile";
+        canvas.className = "unity-mobile";
+        document.body.classList.add("is-mobile-device");
+
+        var syncOrientationHint = function() {
+          var isPortrait = window.innerHeight > window.innerWidth;
+          mobileTip.classList.toggle("unity-mobile-tip--visible", isPortrait);
+        };
+
+        syncOrientationHint();
+        window.addEventListener("resize", syncOrientationHint);
+      } else {
+        canvas.style.width = "min(94vw, 1120px)";
+        canvas.style.height = "min(calc(94vw * 0.625), 700px)";
+      }
+
+      loadingBar.style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+          loadingText.textContent = "Preparing the simulation... " + Math.round(progress * 100) + "%";
+        }).then((unityInstance) => {
+          loadingBar.style.display = "none";
+          fullscreenButton.onclick = () => {
+            unityInstance.SetFullscreen(1);
+          };
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+
+      document.body.appendChild(script);
+
+    </script>
+  </body>
+</html>

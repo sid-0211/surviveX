@@ -1613,7 +1613,26 @@ function App() {
                       {visibleComments.map((comment) => (
                         <div key={comment.id} className="comment">
                           <div className="comment__meta">
-                            <strong>{comment.authorName}</strong>
+                            <div className="comment__author">
+                              <button
+                                className="comment__avatar-button"
+                                onClick={() => openProfilePreview(comment.authorId)}
+                                type="button"
+                              >
+                                <img
+                                  alt={comment.authorName}
+                                  className="comment__avatar"
+                                  src={comment.authorProfilePhotoUrl || "https://via.placeholder.com/64x64.png?text=SX"}
+                                />
+                              </button>
+                              <button
+                                className="comment__author-button"
+                                onClick={() => openProfilePreview(comment.authorId)}
+                                type="button"
+                              >
+                                <strong>{comment.authorName}</strong>
+                              </button>
+                            </div>
                             {currentUser.id === comment.authorId ? (
                               <button
                                 aria-label="Delete comment"
@@ -2856,7 +2875,26 @@ function App() {
                           {visibleComments.map((comment) => (
                             <div key={comment.id} className="comment">
                               <div className="comment__meta">
-                                <strong>{comment.authorName}</strong>
+                                <div className="comment__author">
+                                  <button
+                                    className="comment__avatar-button"
+                                    onClick={() => openProfilePreview(comment.authorId)}
+                                    type="button"
+                                  >
+                                    <img
+                                      alt={comment.authorName}
+                                      className="comment__avatar"
+                                      src={comment.authorProfilePhotoUrl || "https://via.placeholder.com/64x64.png?text=SX"}
+                                    />
+                                  </button>
+                                  <button
+                                    className="comment__author-button"
+                                    onClick={() => openProfilePreview(comment.authorId)}
+                                    type="button"
+                                  >
+                                    <strong>{comment.authorName}</strong>
+                                  </button>
+                                </div>
                                 {currentUser.id === comment.authorId ? (
                                   <button
                                     aria-label="Delete comment"

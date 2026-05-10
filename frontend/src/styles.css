@@ -1558,6 +1558,22 @@ textarea::placeholder {
   height: 16px;
 }
 
+.comment__author-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.comment__author-button strong {
+  color: inherit;
+}
+
+.comment__author-button:hover strong {
+  text-decoration: underline;
+}
+
 .card {
   display: grid;
   gap: 16px;
@@ -1718,6 +1734,29 @@ textarea::placeholder {
   padding: 14px 16px;
   border-radius: 18px;
   background: var(--card-muted);
+}
+
+.comment__author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.comment__avatar-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.comment__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--panel-border);
 }
 
 .comment-form__box {
@@ -2029,7 +2068,7 @@ textarea::placeholder {
   }
 
   .top-nav {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     justify-items: stretch;
     gap: 12px;
     padding: 14px 16px;
@@ -2042,12 +2081,13 @@ textarea::placeholder {
 
   .top-nav__links {
     justify-content: space-between;
-    gap: 14px;
-    flex-wrap: wrap;
+    gap: 12px;
+    flex-wrap: nowrap;
   }
 
   .top-nav__right {
     justify-content: flex-end;
+    gap: 10px;
   }
 
   .top-nav__cta {
@@ -2135,6 +2175,7 @@ textarea::placeholder {
 
   .top-nav__links {
     align-items: center;
+    gap: 10px;
   }
 
   .top-nav__link-button {
@@ -2285,12 +2326,30 @@ textarea::placeholder {
   }
 
   .top-nav__links {
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    align-items: center;
     gap: 10px;
+  }
+
+  .top-nav__right {
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .top-nav__profile-button,
+  .theme-toggle {
+    flex-shrink: 0;
+  }
+
+  .top-nav__link-button {
+    width: 100%;
+    text-align: center;
   }
 
   .top-nav--auth {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .top-nav--auth .top-nav__links,
@@ -2299,12 +2358,17 @@ textarea::placeholder {
   }
 
   .top-nav--auth .top-nav__links {
+    display: flex;
     justify-content: center;
   }
 
   .top-nav--auth .top-nav__cta {
     width: 100%;
     justify-self: stretch;
+  }
+
+  .top-nav--auth .top-nav__right {
+    justify-content: center;
   }
 
   .top-nav__cta {
