@@ -20,6 +20,29 @@ const HERO_MESSAGES = [
   "Every second chooses the survivor"
 ];
 
+const TEAM_SOCIAL_LINKS = {
+  "Siddharth Rawal": {
+    instagram: "https://www.instagram.com/siddharth.rawall/",
+    linkedin: "https://www.linkedin.com/in/siddharth-rawal-b07994202/",
+    email: "siddharth.rawal02@gmail.com"
+  },
+  "Adish Sharma": {
+    instagram: "https://www.instagram.com/14adish/",
+    linkedin: "https://www.linkedin.com/in/adishsharma06/",
+    email: "14adish@gmail.com"
+  },
+  "Aman Bharawa": {
+    instagram: "https://www.instagram.com/just__a_man_/",
+    linkedin: "https://www.linkedin.com/in/aman-bharawa/",
+    email: "amanbharawa2025@gmail.com"
+  },
+  "Arin Arya": {
+    instagram: "https://www.instagram.com/arin.arya.524/",
+    linkedin: "https://www.linkedin.com/in/arin-arya-0aa621271/",
+    email: "arinarya0706@gmail.com"
+  }
+};
+
 const emptyPost = {
   title: "",
   story: "",
@@ -1799,25 +1822,57 @@ function App() {
         </section>
 
         <section className="about-members">
-          {aboutPage.members.map((member, index) => (
-            <article
-              key={`${member.name}-${index}`}
-              className={`about-member reveal-on-scroll ${index % 2 === 1 ? "about-member--reverse" : ""}`}
-              data-reveal
-            >
-              <div className="about-member__image-wrap">
-                <img
-                  alt={member.name}
-                  className="about-member__image"
-                  src={member.photoUrl || `https://via.placeholder.com/900x1000.png?text=${encodeURIComponent(member.name)}`}
-                />
-              </div>
-              <div className="about-member__copy">
-                <h3>{member.name}</h3>
-                <p>{member.description}</p>
-              </div>
-            </article>
-          ))}
+          {aboutPage.members.map((member, index) => {
+            const socialLinks = TEAM_SOCIAL_LINKS[member.name];
+            return (
+              <article
+                key={`${member.name}-${index}`}
+                className={`about-member reveal-on-scroll ${index % 2 === 1 ? "about-member--reverse" : ""}`}
+                data-reveal
+              >
+                <div className="about-member__image-wrap">
+                  <img
+                    alt={member.name}
+                    className="about-member__image"
+                    src={member.photoUrl || `https://via.placeholder.com/900x1000.png?text=${encodeURIComponent(member.name)}`}
+                  />
+                </div>
+                <div className="about-member__copy">
+                  <h3>{member.name}</h3>
+                  <p>{member.description}</p>
+                  {socialLinks ? (
+                    <div className="about-member__socials">
+                      <a
+                        aria-label={`${member.name} Instagram`}
+                        className="about-member__social-link"
+                        href={socialLinks.instagram}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        <InstagramIcon />
+                      </a>
+                      <a
+                        aria-label={`${member.name} LinkedIn`}
+                        className="about-member__social-link"
+                        href={socialLinks.linkedin}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        <LinkedInIcon />
+                      </a>
+                      <a
+                        aria-label={`Email ${member.name}`}
+                        className="about-member__social-link"
+                        href={`mailto:${socialLinks.email}`}
+                      >
+                        <MailIcon />
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
         </section>
       </section>
     </main>
@@ -3214,6 +3269,32 @@ function MenuIcon() {
         d="M4.5 7.25h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1 0-1.5Zm0 4h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1 0-1.5Zm0 4h15a.75.75 0 0 1 0 1.5h-15a.75.75 0 0 1 0-1.5Z"
         fill="currentColor"
       />
+    </svg>
+  );
+}
+
+function InstagramIcon() {
+  return (
+    <svg aria-hidden="true" className="icon-button__icon" viewBox="0 0 24 24">
+      <rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <circle cx="12" cy="12" r="3.8" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function LinkedInIcon() {
+  return (
+    <svg aria-hidden="true" className="icon-button__icon" viewBox="0 0 24 24">
+      <path d="M7 9.5v7.5M7 7a1.25 1.25 0 1 0 0-2.5A1.25 1.25 0 0 0 7 7ZM11.5 17v-4.3c0-1.8 1-3.2 2.8-3.2 1.7 0 2.2 1.2 2.2 3V17M5 20h14a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg aria-hidden="true" className="icon-button__icon" viewBox="0 0 24 24">
+      <path d="M4 7.5 12 13l8-5.5M5.5 18.5h13a1.5 1.5 0 0 0 1.5-1.5v-10A1.5 1.5 0 0 0 18.5 5.5h-13A1.5 1.5 0 0 0 4 7v10A1.5 1.5 0 0 0 5.5 18.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </svg>
   );
 }

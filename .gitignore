@@ -33,3 +33,11 @@ backend/SurviveX_WEBGL9/Build/
 backend/*.zip
 backend/*.jar
 backend/target/
+
+backend/SurviveX_WEBGL2/Build/
+backend/SurviveX_WEBGL4/Build/
+backend/SurviveX_WEBGL8/Build/
+backend/SurviveX_WEBGL9/Build/
+backend/*.zip
+backend/*.jar
+backend/target/

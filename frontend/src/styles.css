@@ -1037,6 +1037,41 @@ a {
   padding: 14px 0;
 }
 
+.about-member__socials {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.about-member__social-link {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: var(--card-muted);
+  color: var(--text-main);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.about-member__social-link:hover {
+  transform: translateY(-1px);
+  color: #ff2147;
+  border-color: rgba(255, 33, 71, 0.28);
+  box-shadow: 0 12px 22px rgba(255, 33, 71, 0.12);
+}
+
+.about-member__social-link svg {
+  width: 16px;
+  height: 16px;
+}
+
 .panel__header h2,
 .feed__header h2,
 .card h3 {
